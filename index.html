@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(to bottom right, #1a1a1a, #4a4a4a);
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #333;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        .game-info {
+            color: white;
+            margin: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-info">
+        <h2>Snake Game</h2>
+        <div>High Score: <span id="highScore">0</span></div>
+        <div>Current Score: <span id="currentScore">0</span></div>
+    </div>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const box = 20;
+        let snake = [];
+        snake[0] = { x: 9 * box, y: 10 * box };
+        let food = {
+            x: Math.floor(Math.random() * 19 + 1) * box,
+            y: Math.floor(Math.random() * 19 + 1) * box
+        };
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let d;
+        let game;
+        let isPaused = false;
+        const gameSpeed = 150; // Slower speed for better control
+
+        document.getElementById('highScore').textContent = highScore;
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'p') {
+                togglePause();
+                return;
+            }
+            
+            if (!isPaused) {
+                switch(event.keyCode) {
+                    case 37:
+                        if (d != 'RIGHT') d = 'LEFT';
+                        break;
+                    case 38:
+                        if (d != 'DOWN') d = 'UP';
+                        break;
+                    case 39:
+                        if (d != 'LEFT') d = 'RIGHT';
+                        break;
+                    case 40:
+                        if (d != 'UP') d = 'DOWN';
+                        break;
+                }
+            }
+        });
+
+        function togglePause() {
+            isPaused = !isPaused;
+            if (!isPaused) {
+                game = setInterval(draw, gameSpeed);
+            } else {
+                clearInterval(game);
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '30px Arial';
+                ctx.fillText('PAUSED', canvas.width/2 - 50, canvas.height/2);
+            }
+        }
+
+        function drawSnakePart(x, y, isHead) {
+            const gradient = ctx.createRadialGradient(
+                x + box/2, y + box/2, 2,
+                x + box/2, y + box/2, box/2
+            );
+            gradient.addColorStop(0, isHead ? '#50ff50' : '#ffffff');
+            gradient.addColorStop(1, isHead ? '#008000' : '#a0a0a0');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, box, box);
+            ctx.strokeStyle = '#000';
+            ctx.strokeRect(x, y, box, box);
+        }
+
+        function gameOver() {
+            clearInterval(game);
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'red';
+            ctx.font = '40px Arial';
+            ctx.fillText('GAME OVER!', canvas.width/2 - 100, canvas.height/2);
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${score}`, canvas.width/2 - 40, canvas.height/2 + 40);
+            ctx.fillText('Press SPACE to restart', canvas.width/2 - 90, canvas.height/2 + 80);
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snakeHighScore', highScore);
+                document.getElementById('highScore').textContent = highScore;
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            for(let i = 0; i < canvas.width; i += box) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+
+            for (let i = 0; i < snake.length; i++) {
+                drawSnakePart(snake[i].x, snake[i].y, i === 0);
+            }
+
+            // Draw food with gradient
+            const foodGradient = ctx.createRadialGradient(
+                food.x + box/2, food.y + box/2, 2,
+                food.x + box/2, food.y + box/2, box/2
+            );
+            foodGradient.addColorStop(0, '#ff5050');
+            foodGradient.addColorStop(1, '#ff0000');
+            ctx.fillStyle = foodGradient;
+            ctx.fillRect(food.x, food.y, box, box);
+
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            if (d == 'LEFT') snakeX -= box;
+            if (d == 'UP') snakeY -= box;
+            if (d == 'RIGHT') snakeX += box;
+            if (d == 'DOWN') snakeY += box;
+
+            if (snakeX == food.x && snakeY == food.y) {
+                score++;
+                document.getElementById('currentScore').textContent = score;
+                food = {
+                    x: Math.floor(Math.random() * 19 + 1) * box,
+                    y: Math.floor(Math.random() * 19 + 1) * box
+                };
+            } else {
+                snake.pop();
+            }
+
+            let newHead = {
+                x: snakeX,
+                y: snakeY
+            };
+
+            if (snakeX < 0 || snakeY < 0 || snakeX >= canvas.width || snakeY >= canvas.height || collision(newHead, snake)) {
+                gameOver();
+                return;
+            }
+
+            snake.unshift(newHead);
+        }
+
+        function collision(head, array) {
+            for (let i = 0; i < array.length; i++) {
+                if (head.x == array[i].x && head.y == array[i].y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space' && !game) {
+                snake = [{ x: 9 * box, y: 10 * box }];
+                food = {
+                    x: Math.floor(Math.random() * 19 + 1) * box,
+                    y: Math.floor(Math.random() * 19 + 1) * box
+                };
+                d = undefined;
+                score = 0;
+                document.getElementById('currentScore').textContent = score;
+                game = setInterval(draw, gameSpeed);
+            }
+        });
+
+        game = setInterval(draw, gameSpeed);
+    </script>
+</body>
+</html>
